@@ -483,6 +483,7 @@ pub mod band {
     }
 
     /// Groups multiple bands side-by-side with vertical separators between them.
+    /// When bands overflow the available width, the group scrolls horizontally.
     pub fn band_group<'a, Message: 'a + Clone>(
         bands: Vec<Element<'a, Message>>,
     ) -> Element<'a, Message> {
@@ -495,7 +496,9 @@ pub mod band {
             row = row.push(b);
         }
 
-        Container::new(row)
+        let scrollable = crate::widget::scrollable::horizontal(row);
+
+        Container::new(scrollable)
             .style(|theme| {
                 let palette = theme.palette();
                 iced::widget::container::Style::default()

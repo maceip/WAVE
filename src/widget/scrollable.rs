@@ -12,10 +12,20 @@ pub fn standard<'a, Message>(content: impl Into<Element<'a, Message>>) -> Scroll
         .style(style::scrollable::default)
 }
 
+/// Horizontal-only scrollable with a thin scrollbar, used for ribbon band overflow.
+pub fn horizontal<'a, Message>(content: impl Into<Element<'a, Message>>) -> Scrollable<'a, Message> {
+    Scrollable::with_direction(content, Direction::Horizontal(scrollbar::horizontal()))
+        .style(style::scrollable::default)
+}
+
 pub mod scrollbar {
     use iced::widget::scrollable::Scrollbar;
 
     pub fn standard() -> Scrollbar {
         Scrollbar::new().width(12).scroller_width(6)
+    }
+
+    pub fn horizontal() -> Scrollbar {
+        Scrollbar::new().width(6).scroller_width(4)
     }
 }
