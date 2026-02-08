@@ -109,34 +109,84 @@ The Aurora Ribbon Demo is composed of several Kotlin source files and resource f
 1. Core Application Logic
 These files contain the main entry point, the UI structure, and the state management for the demo.
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ribbon\AuroraRibbonDemo.kt: The primary file. It contains the main function, the RibbonBuilder class (which defines the entire ribbon structure), and the layout logic for the window content.
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ribbon\AuroraRibbonDemo.kt: The primary file. It contains the main function, the RibbonBuilder class (which defines the entire ribbon structure), and the layout logic for the window content.
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ribbon\RibbonState.kt: Defines the data structures and enums used to track the application's state (e.g., selected task, document styles, font settings).
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ribbon\RibbonState.kt: Defines the data structures and enums used to track the application's state (e.g., selected task, document styles, font settings).
 2. Resource & Localization Files
 These files provide the text labels, tooltips, and descriptions used throughout the UI.
 •
-demo\src\desktopMain\resources\org\pushingpixels\aurora\demo\Resources.properties: The default English localized strings.
+vendor\aurora\demo\src\desktopMain\resources\org\pushingpixels\aurora\demo\Resources.properties: The default English localized strings.
 •
-demo\src\desktopMain\resources\org\pushingpixels\aurora\demo\Resources_iw.properties: The Hebrew localized strings (used to demonstrate RTL support).
+vendor\aurora\demo\src\desktopMain\resources\org\pushingpixels\aurora\demo\Resources_iw.properties: The Hebrew localized strings (used to demonstrate RTL support).
 3. Visual Assets (Transcoded SVGs)
 The demo relies on hundreds of generated Kotlin files that represent SVG icons. These are located in:
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\tango\: Professional editor icons (e.g., edit_paste.kt, format_indent_less.kt).
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\tango\: Professional editor icons (e.g., edit_paste.kt, format_indent_less.kt).
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\material\: Utility icons (e.g., refresh_black_24dp.kt, person_black_24dp.kt).
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\material\: Utility icons (e.g., refresh_black_24dp.kt, person_black_24dp.kt).
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\vaadin\: Application-specific icons.
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\vaadin\: Application-specific icons.
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\radiance_menu.kt: The main application menu icon.
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\svg\radiance_menu.kt: The main application menu icon.
 4. Shared Demo Components
 The demo occasionally uses shared primitives from the main demo package:
 •
-demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ColorIcons.kt: (If applicable) helper classes for rendering color-related icons.
+vendor\aurora\demo\src\desktopMain\kotlin\org\pushingpixels\aurora\demo\ColorIcons.kt: (If applicable) helper classes for rendering color-related icons.
 5. Build Configuration
 •
-demo\build.gradle.kts: Configures the dependencies (Compose, Aurora libraries) and defines the mainClass for running the demo.
+vendor\aurora\demo\build.gradle.kts: Configures the dependencies (Compose, Aurora libraries) and defines the mainClass for running the demo.
 In summary, while the core "brain" of the demo lives in just two files (AuroraRibbonDemo.kt and RibbonState.kt), it orchestrates hundreds of asset files and localized resources to create the full enterprise experience.
 ControlPane: The main body of the Ribbon bands.
 •
 None (Default): The main "Universe" canvas.
 This structure allows the app to maintain 50+ distinct assets while keeping the interface discoverable and responsive.
+Underlying Implementation of the Aurora Ribbon
+The Aurora Ribbon is implemented as a specialized layout system that lives primarily in the :window and :component modules. Unlike standard toolbars, it is a dynamic layout engine that continuously calculates the optimal representation of commands based on available window width.
+1. The Core Architecture: Command-Projection
+The most critical part of the implementation is the separation of Content Models from Presentation Models.
+•
+Content Model (Command): Defines the "what" (text, icon, action, enabled state).
+•
+Projection (CommandButtonProjection): Marries a content model with a Presentation Model (defines "how" it looks—Big, Medium, Small).
+•
+The Ribbon’s Role: The Ribbon doesn't just display these projections; it re-projects them. As the window shrinks, the Ribbon changes the presentation model of a button from Big to Small without ever touching the underlying Command logic.
+2. Adaptive Resizing Logic (RibbonBands.kt)
+The "magic" of the Ribbon happens in the RibbonBands and RibbonBand implementation.
+•
+Resize Policies (RibbonBandResizePolicy): Every band has a list of policies. The implementation iterates through these policies to find the "best fit."
+•
+Intrinsic Width Calculation: Before rendering, the Ribbon runs a pre-layout pass (getBandsIntrinsicWidth) where it asks every band: "If I use Policy X, how wide will you be?"
+•
+Validation: It strictly enforces that policies must be non-increasing in width. If a "restrictive" policy accidentally asks for more space than a "permissive" one, the library throws the Inconsistent intrinsic widths error you saw earlier. This ensures the UI never "flickers" or jumps during resizing.
+3. Component Hierarchy & Layout
+•
+Tasks vs. Bands: AuroraRibbonWindow acts as the root. It manages the RibbonTask selection. Each Task is a container for RibbonBands.
+•
+The Ribbon Box: A custom layout (RibbonBox in AuroraRibbonWindow.kt) manages three distinct areas:
+i.
+Application Menu: The global "File" button.
+ii.
+Task Toggle Buttons: The tabs at the top.
+iii.
+Anchored Commands: Buttons fixed to the far right (like Help or minimize).
+•
+Band Internal Layout: Inside a band, components are grouped into RibbonBandCommandGroup or RibbonBandComponentGroup.
+◦
+BigButtons are rendered solo.
+◦
+MediumButtons and SmallButtons are automatically column-packed into 3 rows to maximize vertical space usage.
+4. Contextual Awareness & Title Pane Integration
+Aurora uses Decoration Areas (AuroraDecorationArea) to "bleed" the Ribbon into the native window frame.
+•
+Title Pane Sync: The RibbonWindowTitlePane implementation in AuroraRibbonWindow.kt is responsible for rendering the labels of Contextual Task Groups directly in the window's title bar.
+•
+State Synchronization: It uses Compose's SnapshotStateList to track the exact pixel offsets of contextual tabs so that the colored highlights in the title bar align perfectly with the tabs below.
+5. Keyboard Navigation (The Keytip Engine)
+Keytips are not just simple overlays; they are a deep integration into the layout.
+•
+KeyTipTracker: A singleton that tracks the screen coordinates of every projected command.
+•
+AWT Integration: Since Compose for Desktop runs on AWT, the Ribbon installs a global AWTEventListener to intercept the Alt key and "F10".
+•
+Recursive Traversal: When you type a Keytip letter, the tracker finds the matching projection, activates its action, and then re-scans the new UI state (like an open popup) to project the next level of Keytips.
+In summary, the Ribbon is not a widget; it is a reactive orchestration layer that treats the UI as a series of priorities and projections rather than static boxes.
