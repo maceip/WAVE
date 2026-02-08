@@ -487,7 +487,7 @@ pub mod band {
     pub fn band_group<'a, Message: 'a + Clone>(
         bands: Vec<Element<'a, Message>>,
     ) -> Element<'a, Message> {
-        let mut row = Row::new().spacing(0).height(Length::Fill);
+        let mut row = Row::new().spacing(0).height(88);
 
         for (i, b) in bands.into_iter().enumerate() {
             if i > 0 {
@@ -496,7 +496,9 @@ pub mod band {
             row = row.push(b);
         }
 
-        let scrollable = crate::widget::scrollable::horizontal(row);
+        let scrollable = crate::widget::scrollable::horizontal(row)
+            .width(Length::Fill)
+            .height(Length::Fill);
 
         Container::new(scrollable)
             .style(|theme| {
@@ -509,7 +511,7 @@ pub mod band {
                         width: 1.0,
                     })
             })
-            .height(94)
+            .height(100)
             .into()
     }
 }
